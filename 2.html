@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Viewer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-vEYWeK7JlN8IYdphDg8tCqioCE0ZfXVt4oP2AJkkw9yXJeFdTjhlQDlA3Ux/EqgtdbYhO5vQePf11PKH2wBeRg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+          body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(14, 48, 173, 0.867);
+            padding: 20px;
+            text-align: center; 
+            margin-bottom: 20px; 
+        }
+        .image-container {
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;  
+            position: relative;
+        }
+        .like-message, .share-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(51, 102, 212, 0.8);
+            color: white;
+            padding: 10px;
+            display: none;
+        }
+        .comments {
+            margin-top: 10px;
+        }
+        .comment-input {
+            width: calc(100% - 20px);
+            margin: 0 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            outline: none;
+        }
+        .interaction-text {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+        .comment-form button:hover {
+            background-color: #2e4b8e;
+        }
+        .comments-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        .comments-list li {
+            margin-bottom: 5px;
+        }
+        .actions .icon {
+            margin-right: 5px;
+        }
+        button {
+            background-color: #3b5998;
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 20px;
+            margin-top: 10px;
+        }
+        
+    </style>
+</head>
+<body>
+    <h1>Trình xem ảnh</h1>
+    <div id="imageContainer"></div>
+
+    <script>
+        async function fetchAndDisplayImages() {
+            try {
+                const response = await fetch('http://localhost:3000/images');
+                const imageData = await response.json();
+
+                const imageContainer = document.getElementById('imageContainer');
+                imageContainer.innerHTML = ''; 
+
+                imageData.forEach(image => {
+                    const imageDiv = document.createElement('div');
+                    imageDiv.classList.add('image-container');
+                    imageDiv.innerHTML = `
+                        <img src="${image.url}" alt="Ảnh ${image.id}">
+                        <div class="actions">
+                            <button onclick="likeImage(${image.id})"><i class="far fa-thumbs-up icon"></i> Thích</button>
+                            <button onclick="shareImage(${image.id})"><i class="fas fa-share icon"></i> Chia sẻ</button>
+                        </div>
+                        <div class="comments">
+                            <h3>Bình luận</h3>
+                            <ul class="comments-list" id="commentsList_${image.id}">
+                                ${image.comments.map(comment => `<li>${comment.binhluan}</li>`).join('')}
+                            </ul>
+                            <form class="comment-form" onsubmit="addComment(event, ${image.id})">
+                                <input type="text" placeholder="Thêm bình luận..." required>
+                                <button type="submit">Gửi</button>
+                            </form>
+                        </div>
+                        <div class="like-message" id="likeMessage_${image.id}">Bạn đã thích ảnh này!</div>
+                        <div class="share-message" id="shareMessage_${image.id}">Bạn đã chia sẻ ảnh này!</div>
+                    `;
+                    imageContainer.appendChild(imageDiv);
+                });
+
+            } catch (error) {
+                console.error('Lỗi khi tải ảnh:', error);
+            }
+        }
+
+        async function addComment(event, imageId) {
+            event.preventDefault();
+            const input = event.target.querySelector('input[type="text"]');
+            const comment = input.value.trim();
+
+            if (!comment) {
+                alert('Vui lòng nhập bình luận.');
+                return;
+            }
+
+            try {
+ 
+                const response = await fetch(`http://localhost:3000/images/${imageId}`);
+                const image = await response.json();
+
+
+                image.comments.push({
+                    id: generateUUID(), 
+                    binhluan: comment
+                });
+
+                const updateResponse = await fetch(`http://localhost:3000/images/${imageId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(image),
+                });
+
+                if (!updateResponse.ok) {
+                    throw new Error('Thêm bình luận thất bại.');
+                }
+
+
+                fetchAndDisplayImages();
+
+            } catch (error) {
+                console.error('Lỗi khi thêm bình luận:', error);
+            }
+
+
+            input.value = '';
+        }
+
+
+        function likeImage(imageId) {
+            const likeMessage = document.getElementById(`likeMessage_${imageId}`);
+            likeMessage.style.display = 'block';
+
+            setTimeout(() => {
+                likeMessage.style.display = 'none';
+            }, 2000); 
+        }
+
+   
+        function shareImage(imageId) {
+            const shareMessage = document.getElementById(`shareMessage_${imageId}`);
+            shareMessage.style.display = 'block';
+
+            setTimeout(() => {
+                shareMessage.style.display = 'none';
+            }, 2000); 
+        }
+
+    
+        fetchAndDisplayImages();
+
+ 
+        function generateUUID() { 
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0,
+                    v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+    </script>
+</body>
+</html>

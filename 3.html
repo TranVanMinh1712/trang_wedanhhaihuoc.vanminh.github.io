@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý ảnh và bình luận</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" integrity="sha512-vEYWeK7JlN8IYdphDg8tCqioCE0ZfXVt4oP2AJkkw9yXJeFdTjhlQDlA3Ux/EqgtdbYhO5vQePf11PKH2wBeRg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .image-container {
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            position: relative;
+        }
+        .actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 10px;
+            align-items: center;
+        }
+        .actions button {
+            cursor: pointer;
+            background: none;
+            border: none;
+            outline: none;
+            color: #385898;
+            display: flex;
+            align-items: center;
+            padding: 5px 10px;
+            border-radius: 3px;
+            transition: background-color 0.3s;
+        }
+        .actions button:hover {
+            background-color: #f0f0f0;
+        }
+        .comments {
+            margin-top: 10px;
+        }
+        .comments-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+        .comments-list li {
+            margin-bottom: 5px;
+        }
+        .edit-delete-buttons {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 10px;
+        }
+        .edit-delete-buttons button {
+            cursor: pointer;
+            background-color: #385898;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            margin-left: 5px;
+        }
+        .edit-delete-buttons button:hover {
+            background-color: #2e4b8e;
+        }
+        .edit-comment-form {
+            display: flex;
+            margin-top: 10px;
+        }
+        .edit-comment-form input[type="text"] {
+            flex: 1;
+            padding: 5px;
+            margin-right: 5px;
+            border: 1px solid #ccc;
+        }
+        .edit-comment-form button {
+            cursor: pointer;
+            background-color: #385898;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+        }
+        .edit-comment-form button:hover {
+            background-color: #2e4b8e;
+        }
+    </style>
+</head>
+<body>
+    <h1>Quản lý ảnh và bình luận</h1>
+    <button onclick="addNewImage()">Thêm URL mới</button>
+    <div id="imageContainer"></div>
+
+    <script>
+  
+        async function fetchAndDisplayImages() {
+            try {
+                const response = await fetch('http://localhost:3000/images');
+                const imageData = await response.json();
+
+                const imageContainer = document.getElementById('imageContainer');
+                imageContainer.innerHTML = ''; 
+
+                imageData.forEach(image => {
+                    const imageDiv = document.createElement('div');
+                    imageDiv.classList.add('image-container');
+                    imageDiv.innerHTML = `
+                        <img src="${image.url}" alt="Ảnh ${image.id}">
+                        <div class="actions">
+                            <button onclick="editImage(${image.id})">Sửa URL</button>
+                            <button onclick="deleteImage(${image.id})">Xóa</button>
+                            <button onclick="addNewComment(${image.id})">Thêm bình luận mới</button>
+                        </div>
+                        <div class="comments">
+                            <h3>Bình luận</h3>
+                            <ul class="comments-list" id="commentsList_${image.id}">
+                                ${image.comments.map(comment => `
+                                    <li>
+                                        ${comment.binhluan}
+                                        <div class="edit-delete-buttons">
+                                            <button onclick="editComment(${image.id}, '${comment.id}', '${comment.binhluan}')">Sửa</button>
+                                            <button onclick="deleteComment(${image.id}, '${comment.id}')">Xóa</button>
+                                        </div>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    `;
+                    imageContainer.appendChild(imageDiv);
+                });
+
+            } catch (error) {
+                console.error('Lỗi khi tải ảnh:', error);
+            }
+        }
+
+        async function addNewImage() {
+            const newUrl = prompt('Nhập URL mới:');
+            if (!newUrl) return;
+
+            try {
+                const response = await fetch('http://localhost:3000/images', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        url: newUrl,
+                        comments: []
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Thêm ảnh mới thất bại.');
+                }
+
+             
+                fetchAndDisplayImages();
+
+            } catch (error) {
+                console.error('Lỗi khi thêm ảnh mới:', error);
+            }
+        }
+
+  
+        async function addNewComment(imageId) {
+            const newComment = prompt('Nhập bình luận mới:');
+            if (!newComment) return;
+
+            try {
+                const response = await fetch(`http://localhost:3000/images/${imageId}`);
+                const image = await response.json();
+
+                const commentId = generateUUID(); 
+                const newCommentObj = {
+                    id: commentId,
+                    binhluan: newComment,
+                };
+
+                image.comments.push(newCommentObj);
+
+              
+                const updateResponse = await fetch(`http://localhost:3000/images/${imageId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(image),
+                });
+
+                if (!updateResponse.ok) {
+                    throw new Error('Thêm bình luận mới thất bại.');
+                }
+
+        
+                fetchAndDisplayImages();
+
+            } catch (error) {
+                console.error('Lỗi khi thêm bình luận mới:', error);
+            }
+        }
+
+
+        async function editImage(imageId) {
+            const newUrl = prompt('Nhập URL mới cho ảnh:');
+            if (!newUrl) return;
+
+            try {
+                const response = await fetch(`http://localhost:3000/images/${imageId}`);
+                const image = await response.json();
+
+              
+                image.url = newUrl;
+
+                const updateResponse = await fetch(`http://localhost:3000/images/${imageId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(image),
+                });
+
+                if (!updateResponse.ok) {
+                    throw new Error('Cập nhật URL thất bại.');
+                }
+
+
+                fetchAndDisplayImages();
+
+            } catch (error) {
+                console.error('Lỗi khi sửa URL:', error);
+            }
+        }
+
+ 
+        async function deleteImage(imageId) {
+            const confirmDelete = confirm('Bạn có chắc muốn xóa ảnh này?');
+            if (!confirmDelete) return;
+
+            try {
+                const response = await fetch(`http://localhost:3000/images/${imageId}`, {
+                    method: 'DELETE',
+                });
+
+                if (!response.ok) {
+                    throw new Error('Xóa ảnh thất bại.');
+                }
+
+         
+                fetchAndDisplayImages();
+
+            } catch (error) {
+                console.error('Lỗi khi xóa ảnh:', error);
+            }
+        }
+
+    
+        async function editComment(imageId, commentId, currentComment) {
+            const newComment = prompt('Sửa bình luận:', currentComment);
+            if (!newComment || newComment === currentComment) return;
+
+            try {
+                const response = await fetch(`http://localhost:3000/images/${imageId}`);
+                const image = await response.json();
+
+                const commentToUpdate = image.comments.find(comment => comment.id === commentId);
+                if (commentToUpdate) {
+                    commentToUpdate.binhluan = newComment;
+                } else {
+                    throw new Error('Không tìm thấy bình luận cần sửa.');
+                }
+
+                const updateResponse = await fetch(`http://localhost:3000/images/${imageId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(image),
+                });
+
+                if (!updateResponse.ok) {
+                    throw new Error('Sửa bình luận thất bại.');
+                }
+
+                fetchAndDisplayImages();
+
+            } catch (error) {
+                console.error('Lỗi khi sửa bình luận:', error);
+            }
+        }
+
+        async function deleteComment(imageId, commentId) {
+            const confirmDelete = confirm('Bạn có chắc muốn xóa bình luận này?');
+            if (!confirmDelete) return;
+
+            try {
+                const response = await fetch(`http://localhost:3000/images/${imageId}`);
+                const image = await response.json();
+
+
+                image.comments = image.comments.filter(comment => comment.id !== commentId);
+
+                const updateResponse = await fetch(`http://localhost:3000/images/${imageId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(image),
+                });
+
+                if (!updateResponse.ok) {
+                    throw new Error('Xóa bình luận thất bại.');
+                }
+
+                fetchAndDisplayImages();
+
+            } catch (error) {
+                console.error('Lỗi khi xóa bình luận:', error);
+            }
+        }
+
+
+        fetchAndDisplayImages();
+
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0,
+                    v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+    </script>
+</body>
+</html>

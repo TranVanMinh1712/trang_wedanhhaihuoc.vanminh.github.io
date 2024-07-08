@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng ảnh bằng URL</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        form {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 8px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Quản lý ảnh và bình luận</h1>
+    <button onclick="addNewImage()">Thêm URL mới</button>
+    <div id="imageContainer"></div>
+
+    <script>
+         async function addNewImage() {
+            const newUrl = prompt('Nhập URL mới:');
+            if (!newUrl) return;
+
+            try {
+                const response = await fetch('http://localhost:3000/images', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        url: newUrl,
+                        comments: []
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Thêm ảnh mới thất bại.');
+                }
+
+                // Sau khi thêm thành công, làm mới danh sách hình ảnh
+                fetchAndDisplayImages();
+
+            } catch (error) {
+                console.error('Lỗi khi thêm ảnh mới:', error);
+            }
+        }
+    </script>
+</body>
+</html>
